@@ -1,3 +1,6 @@
+/**
+ * 音乐项接口定义
+ */
 interface SongItem {
   id: number
   title: string
@@ -5,7 +8,21 @@ interface SongItem {
   duration: string
 }
 
-const LIGHT_THEME = {
+/**
+ * 主题配置接口
+ */
+interface ThemeConfig {
+  bg: string
+  text: string
+  accent: string
+  card: string
+  border: string
+  secondaryText: string
+  overlay: string
+}
+
+// 定义亮色主题常量
+const LIGHT_THEME: ThemeConfig = {
   bg: '#FFFFFF',
   text: '#1F2937',
   accent: '#3B82F6',
@@ -15,7 +32,8 @@ const LIGHT_THEME = {
   overlay: '#66000000'
 }
 
-const DARK_THEME = {
+// 定义暗色主题常量
+const DARK_THEME: ThemeConfig = {
   bg: '#0F1419',
   text: '#E5E7EB',
   accent: '#3B82F6',
@@ -28,14 +46,17 @@ const DARK_THEME = {
 @Entry
 @Component
 struct Index {
-  @State isDark: boolean = true
+  // 状态变量
+  @State isDark: boolean = false
   @State isPlaying: boolean = true
   @State menuOpen: boolean = false
   @State currentTime: number = 57
   @State totalTime: number = 267
   @State volume: number = 70
-  @State currentSong: number = 1
+  @State currentSongIdx: number = 0 // 使用索引管理
   @State vinylAngle: number = 0
+
+  private timerId: number = -1
 
   private songs: SongItem[] = [
     { id: 1, title: 'Midnight Dreams', artist: 'Luna Echo', duration: '04:03' },
@@ -45,20 +66,27 @@ struct Index {
     { id: 5, title: 'Urban Pulse', artist: 'City Lights', duration: '04:16' }
   ]
 
-  private get theme() {
+  // 计算属性：获取当前主题，增加兜底逻辑防止 undefined
+  private getTheme(): ThemeConfig {
     return this.isDark ? DARK_THEME : LIGHT_THEME
   }
 
   aboutToAppear(): void {
-    this.rotateVinyl()
+    this.startVinylAnimation()
   }
 
-  private rotateVinyl(): void {
-    setInterval(() => {
+  aboutToDisappear(): void {
+    if (this.timerId !== -1) {
+      clearInterval(this.timerId)
+    }
+  }
+
+  private startVinylAnimation(): void {
+    this.timerId = setInterval(() => {
       if (this.isPlaying) {
-        this.vinylAngle = (this.vinylAngle + 3) % 360
+        this.vinylAngle = (this.vinylAngle + 2) % 360
       }
-    }, 16)
+    }, 20)
   }
 
   private formatTime(value: number): string {
@@ -68,7 +96,7 @@ struct Index {
   }
 
   private chooseSong(idx: number): void {
-    this.currentSong = idx
+    this.currentSongIdx = idx
     this.currentTime = 0
     this.menuOpen = false
     this.vinylAngle = 0
@@ -78,9 +106,9 @@ struct Index {
   NavBar(isLandscape: boolean) {
     Row() {
       Text('Music Player')
-        .fontSize(28)
+        .fontSize(24)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.theme.text)
+        .fontColor(this.getTheme().text)
 
       Blank()
 
@@ -88,7 +116,6 @@ struct Index {
         .width(40)
         .height(40)
         .backgroundColor(Color.Transparent)
-        .borderRadius(8)
         .onClick(() => this.isDark = !this.isDark)
 
       if (!isLandscape) {
@@ -96,13 +123,13 @@ struct Index {
           .width(40)
           .height(40)
           .backgroundColor(Color.Transparent)
-          .borderRadius(8)
           .onClick(() => this.menuOpen = true)
+          .margin({ left: 12 })
       }
     }
     .width('100%')
-    .padding({ left: 24, right: 24, top: 16, bottom: 16 })
-    .border({ width: { bottom: 1 }, color: this.theme.border })
+    .padding({ left: 24, right: 24, top: 12, bottom: 12 })
+    .border({ width: { bottom: 1 }, color: this.getTheme().border })
   }
 
   @Builder
@@ -112,221 +139,157 @@ struct Index {
         .width(size)
         .height(size)
         .fill(this.isDark ? '#101316' : '#111111')
-        .shadow({ radius: 20, color: this.isDark ? '#80000000' : '#30000000', offsetX: 0, offsetY: 8 })
+        .shadow({ radius: 30, color: '#33000000', offsetY: 10 })
 
       Circle()
-        .width(size * 0.72)
-        .height(size * 0.72)
-        .stroke(this.isDark ? '#2C2F36' : '#444444', 2)
+        .width(size * 0.7)
+        .height(size * 0.7)
+        .stroke(this.isDark ? '#2C2F36' : '#444444')
+        .strokeWidth(1)
 
       Circle()
-        .width(size * 0.18)
-        .height(size * 0.18)
+        .width(size * 0.2)
+        .height(size * 0.2)
         .fill('#C0C4CC')
 
-      Circle()
-        .width(size * 0.04)
-        .height(size * 0.04)
-        .fill(this.theme.bg)
-
       Text('🎵')
-        .fontSize(34)
+        .fontSize(size * 0.1)
     }
     .rotate({ z: 1, angle: this.vinylAngle })
-    .animation({ duration: 100, curve: Curve.Linear })
-    .scale({ x: 1, y: 1 })
   }
 
   @Builder
   ControlsCard() {
     Column({ space: 16 }) {
-      Text(this.songs[this.currentSong].title)
-        .fontSize(28)
+      Text(this.songs[this.currentSongIdx].title)
+        .fontSize(24)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.theme.text)
-      Text(this.songs[this.currentSong].artist)
-        .fontSize(18)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.theme.secondaryText)
+        .fontColor(this.getTheme().text)
 
-      Column({ space: 8 }) {
+      Text(this.songs[this.currentSongIdx].artist)
+        .fontSize(16)
+        .fontColor(this.getTheme().secondaryText)
+
+      Column({ space: 4 }) {
         Slider({ value: this.currentTime, min: 0, max: this.totalTime })
-          .blockColor(this.theme.accent)
-          .trackThickness(4)
+          .selectedColor(this.getTheme().accent)
+          .trackColor(this.getTheme().border)
           .onChange((v: number) => this.currentTime = Math.floor(v))
 
         Row() {
-          Text(this.formatTime(this.currentTime)).fontSize(12).fontColor(this.theme.secondaryText)
+          Text(this.formatTime(this.currentTime)).fontSize(12).fontColor(this.getTheme().secondaryText)
           Blank()
-          Text(this.songs[this.currentSong].duration).fontSize(12).fontColor(this.theme.secondaryText)
-        }
-        .width('100%')
+          Text(this.songs[this.currentSongIdx].duration).fontSize(12).fontColor(this.getTheme().secondaryText)
+        }.width('100%')
       }
 
-      Row({ space: 24 }) {
-        Button('⏮').width(52).height(52).borderRadius(26)
-          .backgroundColor(this.theme.card)
-          .onClick(() => this.chooseSong(Math.max(0, this.currentSong - 1)))
+      Row({ space: 30 }) {
+        Text('⏮').fontSize(24).fontColor(this.getTheme().text)
+          .onClick(() => this.chooseSong(Math.max(0, this.currentSongIdx - 1)))
 
-        Button(this.isPlaying ? '⏸' : '▶')
-          .width(60)
-          .height(60)
-          .borderRadius(30)
-          .backgroundColor(this.theme.accent)
-          .fontColor('#FFFFFF')
-          .onClick(() => this.isPlaying = !this.isPlaying)
+        Stack() {
+          Circle().width(64).height(64).fill(this.getTheme().accent)
+          Text(this.isPlaying ? '⏸' : '▶').fontSize(28).fontColor('#FFFFFF')
+        }.onClick(() => this.isPlaying = !this.isPlaying)
 
-        Button('⏭').width(52).height(52).borderRadius(26)
-          .backgroundColor(this.theme.card)
-          .onClick(() => this.chooseSong(Math.min(this.songs.length - 1, this.currentSong + 1)))
+        Text('⏭').fontSize(24).fontColor(this.getTheme().text)
+          .onClick(() => this.chooseSong(Math.min(this.songs.length - 1, this.currentSongIdx + 1)))
       }
 
       Row({ space: 12 }) {
-        Text('🔊').fontSize(18)
+        Text('🔊').fontSize(16).fontColor(this.getTheme().secondaryText)
         Slider({ value: this.volume, min: 0, max: 100 })
-          .blockColor(this.theme.accent)
-          .trackThickness(4)
-          .onChange((v: number) => this.volume = Math.floor(v))
           .layoutWeight(1)
-        Text(`${this.volume}%`)
-          .fontSize(12)
-          .fontColor(this.theme.secondaryText)
-      }
-      .width('100%')
+          .selectedColor(this.getTheme().accent)
+        Text(`${this.volume}%`).fontSize(12).fontColor(this.getTheme().secondaryText)
+      }.width('100%')
     }
     .width('100%')
     .padding(24)
-    .backgroundColor(this.theme.card)
-    .borderRadius(16)
-    .backdropBlur(18)
-    .border({ width: 1, color: this.theme.border })
+    .backgroundColor(this.getTheme().card)
+    .borderRadius(24)
+    .border({ width: 1, color: this.getTheme().border })
   }
 
   @Builder
-  Playlist(simple: boolean = false) {
-    Column({ space: 8 }) {
+  PlaylistView() {
+    Column() {
       Row() {
-        Text('Playlist')
-          .fontSize(18)
-          .fontWeight(FontWeight.SemiBold)
-          .fontColor(this.theme.text)
+        Text('播放列表').fontSize(20).fontWeight(FontWeight.Bold).fontColor(this.getTheme().text)
         Blank()
-        if (!simple) {
-          Button('✕')
-            .backgroundColor(Color.Transparent)
-            .onClick(() => this.menuOpen = false)
-        }
-      }
+        Text('关闭').fontColor(this.getTheme().accent).onClick(() => this.menuOpen = false)
+      }.width('100%').padding(20)
 
-      List({ space: 8 }) {
-        ForEach(this.songs, (song: SongItem, idx: number) => {
+      List() {
+        ForEach(this.songs, (item: SongItem, index: number) => {
           ListItem() {
-            Row() {
-              Text(`${song.id}`).width(28).fontColor(this.theme.secondaryText)
-              if (simple) {
-                Text(`${song.title} - ${song.artist}`).layoutWeight(1).fontColor(this.theme.text)
-              } else {
-                Column({ space: 2 }) {
-                  Text(song.title).fontColor(this.theme.text)
-                  Text(song.artist).fontSize(12).fontColor(this.theme.secondaryText)
-                }
-                .layoutWeight(1)
-              }
-              Text(song.duration).fontSize(12).fontColor(this.theme.secondaryText)
+            Row({ space: 12 }) {
+              Text(`${index + 1}`).fontColor(this.getTheme().secondaryText).width(20)
+              Column() {
+                Text(item.title).fontColor(this.getTheme().text).fontSize(16)
+                Text(item.artist).fontColor(this.getTheme().secondaryText).fontSize(12)
+              }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+              Text(item.duration).fontColor(this.getTheme().secondaryText).fontSize(12)
             }
             .width('100%')
-            .padding(12)
-            .borderRadius(12)
-            .backgroundColor(this.currentSong === idx ? '#333B82F6' : this.theme.card)
-            .onClick(() => this.chooseSong(idx))
+            .padding(16)
+            .backgroundColor(this.currentSongIdx === index ? '#1A3B82F6' : Color.Transparent)
+            .onClick(() => this.chooseSong(index))
           }
-        }, (song: SongItem) => song.id.toString())
-      }
-      .layoutWeight(1)
+        })
+      }.layoutWeight(1)
     }
+    .width('80%')
     .height('100%')
-    .padding(16)
-    .backgroundColor(this.theme.card)
-    .borderRadius(16)
-    .backdropBlur(18)
-    .border({ width: 1, color: this.theme.border })
-  }
-
-  @Builder
-  PortraitLayout() {
-    Stack({ alignContent: Alignment.Top }) {
-      Column({ space: 24 }) {
-        this.NavBar(false)
-
-        Column({ space: 24 }) {
-          this.Vinyl(280)
-          this.ControlsCard()
-        }
-        .padding({ left: 24, right: 24, bottom: 24 })
-      }
-
-      if (this.menuOpen) {
-        Row() {
-          Blank()
-            .onClick(() => this.menuOpen = false)
-            .backgroundColor(this.theme.overlay)
-
-          Column() {
-            this.Playlist(false)
-          }
-          .width('78%')
-          .height('100%')
-          .padding(12)
-          .backgroundColor(this.theme.overlay)
-        }
-        .width('100%')
-        .height('100%')
-      }
-    }
-  }
-
-  @Builder
-  LandscapeLayout() {
-    Column({ space: 12 }) {
-      this.NavBar(true)
-
-      Row({ space: 24 }) {
-        Column() {
-          this.Vinyl(320)
-        }
-        .width('40%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-
-        Column({ space: 16 }) {
-          this.ControlsCard()
-        }
-        .width('60%')
-        .height('100%')
-      }
-      .layoutWeight(1)
-      .padding({ left: 24, right: 24 })
-
-      Column() {
-        this.Playlist(true)
-      }
-      .height('40%')
-      .padding({ left: 24, right: 24, bottom: 16 })
-    }
+    .backgroundColor(this.getTheme().bg)
+    .shadow({ radius: 50, color: '#40000000' })
   }
 
   build() {
-    Column() {
-      If(this.getUIContext().windowStage?.getMainWindowSync().getWindowProperties().windowRect.width >
-        this.getUIContext().windowStage?.getMainWindowSync().getWindowProperties().windowRect.height, () => {
-        this.LandscapeLayout()
-      }, () => {
-        this.PortraitLayout()
-      })
+    Stack() {
+      // 背景层
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(this.getTheme().bg)
+
+      // 主内容
+      Column() {
+        this.NavBar(false)
+
+        Scroll() {
+          Column({ space: 30 }) {
+            this.Vinyl(260)
+            this.ControlsCard()
+          }
+          .padding(24)
+          .width('100%')
+        }
+        .layoutWeight(1)
+      }
+      .width('100%')
+      .height('100%')
+
+      // 抽屉菜单遮罩
+      if (this.menuOpen) {
+        Row() {
+          Rect()
+            .width('20%')
+            .height('100%')
+            .fill(this.getTheme().overlay)
+            .onClick(() => this.menuOpen = false)
+
+          this.PlaylistView()
+        }
+        .width('100%')
+        .height('100%')
+        .transition(TransitionEffect.asymmetric(
+          TransitionEffect.move(TransitionEdge.END),
+          TransitionEffect.move(TransitionEdge.END)
+        ))
+      }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.theme.bg)
-    .animation({ duration: 300, curve: Curve.EaseInOut })
   }
 }
